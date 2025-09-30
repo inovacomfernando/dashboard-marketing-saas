@@ -75,7 +75,7 @@ def load_data():
 df = load_data()
 
 # Benchmarks
-    benchmarks = {
+benchmarks = {
     'TC Usuários (%)': {'min': 8, 'max': 15, 'ideal': 10.5},
     'TC Leads (%)': {'min': 4.5, 'max': 6, 'ideal': 5.25},
     'CAC': {'min': 250, 'max': 500, 'ideal': 350},
@@ -155,7 +155,7 @@ with col4:
     )
 
 # Alertas
-    st.markdown("""
+st.markdown("""
 <div class="alert-box">
     <h4>⚠️ Pontos de Atenção</h4>
     <ul>
