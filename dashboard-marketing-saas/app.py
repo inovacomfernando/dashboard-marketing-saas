@@ -1,10 +1,26 @@
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import numpy as np
-from sklearn.linear_model import LinearRegression
+# Importações principais
+try:
+    import streamlit as st
+    import pandas as pd
+    import plotly.graph_objects as go
+    import plotly.express as px
+    from plotly.subplots import make_subplots
+    import numpy as np
+    from sklearn.linear_model import LinearRegression
+    from scipy import stats
+    import sklearn.metrics as metrics
+except Exception as e:
+    st.error(f"""
+    ❌ Erro ao importar as bibliotecas necessárias.
+    
+    Por favor, instale todas as dependências usando:
+    ```
+    pip install -r requirements.txt
+    ```
+    
+    Erro original: {str(e)}
+    """)
+    st.stop()
 
 # Configuração da página
 st.set_page_config(
@@ -51,24 +67,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Dados
-
-# Função para carregar dados do Google Sheets
+# Função para carregar dados
 @st.cache_data
 def load_data():
-    # Integração Google Sheets (standby)
-    # SHEET_ID = "1k4s7OlIBJHLl9BjUJYC2mgbXDUI-RRXyDQTLIwiXWwo"
-    # SHEET_NAME = "Indicadores" # Altere para o nome correto da aba se necessário
-    # CREDENTIALS = st.secrets["gcp_service_account"] if "gcp_service_account" in st.secrets else None
-    # if CREDENTIALS:
-    #     creds = Credentials.from_service_account_info(CREDENTIALS, scopes=["https://www.googleapis.com/auth/spreadsheets"])
-    #     gc = gspread.authorize(creds)
-    #     sh = gc.open_by_key(SHEET_ID)
-    #     worksheet = sh.worksheet(SHEET_NAME)
-    #     data = worksheet.get_all_records()
-    #     return pd.DataFrame(data)
-    # else:
-    # Dados fixos locais
     data = {
         'Mês': ['Mai/25', 'Jun/25', 'Jul/25', 'Ago/25', 'Set/25'],
         'Sessões': [5218, 5600, 5717, 7654, 8028],
@@ -185,10 +186,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Tabs
-import numpy as np
-from sklearn.linear_model import LinearRegression
-
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["� Evolução", "💰 Financeiro", "🎯 Conversão", "📊 Benchmarks", "📋 Recomendações", "🔮 Forecast"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📈 Evolução", "💰 Financeiro", "🎯 Conversão", "📊 Benchmarks", "📋 Recomendações", "🔮 Forecast"])
 
 with tab1:
     st.subheader("Evolução de Leads e Clientes")
@@ -305,57 +303,6 @@ with tab2:
                    line_color="green", annotation_text="Benchmark Ideal")
     fig6.update_layout(height=350)
     st.plotly_chart(fig6, use_container_width=True)
-    
-    # Alerta crítico sobre CAC:LTV
-    st.markdown("### ⚠️ Alerta Crítico: CAC:LTV em Declínio")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        fig_cac_ltv = go.Figure()
-        fig_cac_ltv.add_trace(go.Scatter(
-            x=df_filtered['Mês'],
-            y=df_filtered['CAC:LTV'],
-            mode='lines+markers',
-            line=dict(color='#ef4444', width=3),
-            marker=dict(size=12),
-            name='CAC:LTV'
-        ))
-        fig_cac_ltv.add_hline(y=3, line_dash="dash", line_color="red", 
-                             annotation_text="Mínimo Aceitável (3:1)", annotation_position="bottom right")
-        fig_cac_ltv.add_hline(y=4, line_dash="dot", line_color="orange",
-                             annotation_text="Ideal (4:1)", annotation_position="top right")
-        fig_cac_ltv.add_hrect(y0=4, y1=7, fillcolor="green", opacity=0.1,
-                             annotation_text="Zona Saudável", annotation_position="top left")
-        fig_cac_ltv.update_layout(
-            height=350,
-            yaxis_title="Relação CAC:LTV",
-            showlegend=False
-        )
-        st.plotly_chart(fig_cac_ltv, use_container_width=True)
-    
-    with col2:
-        variacao_cac_ltv = ((df_filtered['CAC:LTV'].iloc[-1] - df_filtered['CAC:LTV'].iloc[0]) / df_filtered['CAC:LTV'].iloc[0] * 100)
-        
-        st.metric(
-            "CAC:LTV Atual",
-            f"{df_filtered['CAC:LTV'].iloc[-1]:.1f}:1",
-            f"{variacao_cac_ltv:.1f}%",
-            delta_color="inverse"
-        )
-        
-        st.metric(
-            "Distância do Mínimo",
-            f"{(df_filtered['CAC:LTV'].iloc[-1] - 3):.1f}",
-            "pontos acima de 3:1"
-        )
-        
-        st.markdown("""
-        <div style="background-color: #fee; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #ef4444; margin-top: 1rem;">
-            <strong>⚠️ Situação Crítica</strong><br>
-            <small>Se continuar nesta tendência, em 2-3 meses você estará abaixo do mínimo aceitável de 3:1</small>
-        </div>
-        """, unsafe_allow_html=True)
 
 with tab3:
     st.subheader("Funil de Conversão")
@@ -423,8 +370,7 @@ with tab3:
 with tab4:
     st.subheader("Comparação com Benchmarks SaaS ERP")
     
-    # Tabela de benchmarks
-    benchmark_data = {
+    benchmark_data = pd.DataFrame({
         'Métrica': ['TC Usuários → Leads', 'TC Leads → Vendas', 'CAC', 'CAC:LTV', 'ROI', 'Ticket Médio'],
         'Sua Média': [
             f"{df_filtered['TC Usuários (%)'].mean():.2f}%",
@@ -436,57 +382,14 @@ with tab4:
         ],
         'Benchmark': ['8-15%', '4.5-6%', 'R$ 250-500', '≥3:1 (ideal 4-7:1)', '300-500%', 'R$ 120-200'],
         'Status': ['✅ Na meta', '⚠️ Limítrofe', '✅ Aceitável', '⚠️ Declínio', '✅ Bom', '✅ Normal']
-    }
+    })
     
-    st.dataframe(
-        pd.DataFrame(benchmark_data),
-        use_container_width=True,
-        hide_index=True
-    )
-    
-    # Gráfico radar
-    st.markdown("### Radar de Performance vs Benchmark")
-    
-    categories = ['TC Usuários', 'TC Leads', 'CAC/100', 'CAC:LTV', 'ROI/100']
-    
-    seu_desempenho = [
-        df_filtered['TC Usuários (%)'].mean(),
-        df_filtered['TC Leads (%)'].mean(),
-        df_filtered['CAC'].mean() / 100,
-        df_filtered['CAC:LTV'].mean(),
-        df_filtered['ROI (%)'].mean() / 100
-    ]
-    
-    benchmark_valores = [
-        benchmarks['TC Usuários (%)']['ideal'],
-        benchmarks['TC Leads (%)']['ideal'],
-        benchmarks['CAC']['ideal'] / 100,
-        benchmarks['CAC:LTV']['ideal'],
-        benchmarks['ROI (%)']['ideal'] / 100
-    ]
-    
-    fig10 = go.Figure()
-    fig10.add_trace(go.Scatterpolar(
-        r=seu_desempenho,
-        theta=categories,
-        fill='toself',
-        name='Seu Desempenho',
-        line_color='#3b82f6'
-    ))
-    fig10.add_trace(go.Scatterpolar(
-        r=benchmark_valores,
-        theta=categories,
-        fill='toself',
-        name='Benchmark',
-        line_color='#10b981',
-        opacity=0.6
-    ))
-    fig10.update_layout(height=500, polar=dict(radialaxis=dict(visible=True)))
-    st.plotly_chart(fig10, use_container_width=True)
+    st.dataframe(benchmark_data, use_container_width=True, hide_index=True)
 
 with tab5:
-    st.subheader("Recomendações Estratégicas Atualizadas")
+    st.subheader("Recomendações Estratégicas")
     col1, col2 = st.columns(2)
+    
     with col1:
         st.markdown("""
         <div class="alert-box">
@@ -504,10 +407,11 @@ with tab5:
             </ol>
         </div>
         """, unsafe_allow_html=True)
+    
     with col2:
         st.markdown("""
         <div class="success-box">
-            <h4>📈 Oportunidades Recentes</h4>
+            <h4>📈 Oportunidades</h4>
             <ul>
                 <li><strong>Crescimento de leads:</strong> Volume subiu 124% (270→604)</li>
                 <li><strong>Tráfego qualificado:</strong> Conversão usuários→leads está dentro do benchmark</li>
@@ -516,150 +420,224 @@ with tab5:
             </ul>
         </div>
         """, unsafe_allow_html=True)
-    st.markdown("---")
-    st.markdown("### 📅 Plano de Ação Atualizado")
-    plano = pd.DataFrame({
-        'Prazo': ['Curto (30 dias)', 'Curto (30 dias)', 'Curto (30 dias)', 
-                  'Médio (90 dias)', 'Médio (90 dias)', 'Médio (90 dias)',
-                  'Longo (6 meses)', 'Longo (6 meses)', 'Longo (6 meses)'],
-        'Ação': [
-            'Auditar campanhas Google Ads - pausar palavras com CPC alto',
-            'Implementar qualificação de leads (lead scoring)',
-            'A/B test em landing pages focando em conversão',
-            'Desenvolver estratégia de conteúdo (SEO)',
-            'Criar programa de onboarding para aumentar LTV',
-            'Implementar automação de marketing',
-            'Diversificar canais de aquisição (parcerias, marketplace)',
-            'Desenvolver estratégia de customer success',
-            'Criar ofertas de upsell/cross-sell'
-        ],
-        'Impacto Esperado': [
-            'Redução CAC em 15-20%',
-            'Aumento TC em 10-15%',
-            'Aumento conversão em 5-10%',
-            'Redução CAC em 25-30%',
-            'Aumento LTV em 20-30%',
-            'Aumento TC em 15-20%',
-            'Redução CAC em 30-40%',
-            'Redução churn em 15-25%',
-            'Aumento LTV em 40-60%'
-        ],
-        'Responsável': [
-            'Marketing', 'Vendas/Marketing', 'Marketing',
-            'Marketing', 'CS/Produto', 'Marketing',
-            'Comercial', 'Customer Success', 'Produto/Vendas'
-        ]
-    })
-    st.dataframe(plano, use_container_width=True, hide_index=True)
+
+with tab6:
+    st.subheader("🔮 Forecast: Cenários para Projeção e Estratégia")
+    
+    try:
+        # Preparação dos dados para forecast
+        meses = df['Mês'].tolist()
+        meses_num = np.arange(len(meses)).reshape(-1, 1)
+        previsao_meses = ["Out/25", "Nov/25", "Dez/25"]
+        meses_num_forecast = np.arange(len(meses), len(meses)+len(previsao_meses)).reshape(-1, 1)
+
+        def prever_cenarios(col):
+            try:
+                # Modelo de regressão linear
+                modelo = LinearRegression()
+                modelo.fit(meses_num, df[col].values)
+                
+                # Previsão base
+                y_pred = modelo.predict(meses_num)
+                previsao_base = modelo.predict(meses_num_forecast)
+                
+                # Cálculo de resíduos e erro padrão
+                residuos = df[col].values - y_pred
+                erro_padrao = np.std(residuos)
+                
+                # Intervalo de confiança (95%)
+                z_score = 1.96
+                margem_erro = z_score * erro_padrao
+                
+                # Métricas de qualidade
+                r2 = metrics.r2_score(df[col].values, y_pred)
+                rmse = np.sqrt(metrics.mean_squared_error(df[col].values, y_pred))
+                mape = np.mean(np.abs((df[col].values - y_pred) / df[col].values)) * 100
+                
+                # Teste de tendência (Mann-Kendall)
+                tau, p_valor = stats.kendalltau(range(len(df[col].values)), df[col].values)
+                
+                # Cálculo dos cenários
+                otimista = previsao_base + margem_erro
+                conservador = previsao_base - margem_erro
+                
+                return {
+                    'previsao': previsao_base,
+                    'otimista': otimista,
+                    'conservador': conservador,
+                    'metricas': {
+                        'R²': r2,
+                        'RMSE': rmse,
+                        'MAPE': mape,
+                        'Erro Padrão': erro_padrao,
+                        'Tendência (tau)': tau,
+                        'P-valor tendência': p_valor
+                    }
+                }
+            except Exception as e:
+                st.error(f"Erro ao calcular previsões para {col}: {str(e)}")
+                return None
+
+        # KPIs para previsão
+        kpis = ["Leads", "Clientes Web", "Receita Web", "CAC", "LTV", "ROI (%)"]
+        
+        # Calcular previsões
+        resultados = {}
+        for kpi in kpis:
+            resultados[kpi] = prever_cenarios(kpi)
+
+        # Exibir resultados
+        st.markdown("### Previsões com Validação Estatística")
+        
+        for kpi in kpis:
+            if resultados[kpi]:
+                st.markdown(f"#### {kpi}")
+                
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    # Gráfico com previsões e intervalos de confiança
+                    fig = go.Figure()
+                    
+                    # Dados históricos
+                    fig.add_trace(go.Scatter(
+                        x=meses,
+                        y=df[kpi],
+                        name="Histórico",
+                        mode="lines+markers",
+                        line=dict(color='#3b82f6', width=3)
+                    ))
+                    
+                    # Previsão
+                    fig.add_trace(go.Scatter(
+                        x=previsao_meses,
+                        y=resultados[kpi]['previsao'],
+                        name="Previsão",
+                        mode="lines+markers",
+                        line=dict(color='#10b981', width=3, dash='dot')
+                    ))
+                    
+                    # Intervalos de confiança
+                    fig.add_trace(go.Scatter(
+                        x=previsao_meses,
+                        y=resultados[kpi]['otimista'],
+                        name="IC Superior (95%)",
+                        mode="lines",
+                        line=dict(color='rgba(16, 185, 129, 0.3)', dash='dash')
+                    ))
+                    
+                    fig.add_trace(go.Scatter(
+                        x=previsao_meses,
+                        y=resultados[kpi]['conservador'],
+                        name="IC Inferior (95%)",
+                        mode="lines",
+                        line=dict(color='rgba(239, 68, 68, 0.3)', dash='dash'),
+                        fill='tonexty'
+                    ))
+                    
+                    fig.update_layout(
+                        title=f"Previsão: {kpi}",
+                        xaxis_title="Mês",
+                        yaxis_title=kpi,
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    # Métricas de qualidade
+                    st.markdown("**Métricas de Qualidade**")
+                    metricas = resultados[kpi]['metricas']
+                    
+                    # Avaliação da qualidade
+                    if metricas['R²'] > 0.8:
+                        r2_status = "✅ Excelente"
+                    elif metricas['R²'] > 0.6:
+                        r2_status = "⚠️ Moderado"
+                    else:
+                        r2_status = "❌ Baixo"
+                        
+                    if metricas['MAPE'] < 10:
+                        mape_status = "✅ Baixo"
+                    elif metricas['MAPE'] < 20:
+                        mape_status = "⚠️ Moderado"
+                    else:
+                        mape_status = "❌ Alto"
+                        
+                    if metricas['P-valor tendência'] < 0.05:
+                        tend_status = "📈 Significativa" if metricas['Tendência (tau)'] > 0 else "📉 Significativa"
+                    else:
+                        tend_status = "➖ Não significativa"
+                    
+                    st.metric("R² (Ajuste do Modelo)", f"{metricas['R²']:.3f}", r2_status)
+                    st.metric("MAPE (Erro %)", f"{metricas['MAPE']:.1f}%", mape_status)
+                    st.metric("Tendência", f"{metricas['Tendência (tau)']:.3f}", tend_status)
+                
+                st.markdown("---")
+
+        # Análise de correlação entre KPIs
+        st.markdown("### Análise de Correlação entre KPIs")
+        corr_matrix = df[kpis].corr()
+        
+        fig_corr = px.imshow(
+            corr_matrix,
+            labels=dict(color="Correlação"),
+            color_continuous_scale="RdBu",
+            aspect="auto"
+        )
+        fig_corr.update_layout(
+            title="Matriz de Correlação",
+            height=500
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+        
+        # Insights baseados nas correlações
+        st.markdown("### Insights das Análises")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **Qualidade das Previsões:**
+            - Modelos com R² > 0.8 são altamente confiáveis
+            - MAPE < 10% indica previsões precisas
+            - Tendências significativas sugerem padrões consistentes
+            """)
+            
+            st.markdown("""
+            **Recomendações para Uso:**
+            1. Priorize KPIs com maior R² e menor MAPE
+            2. Use intervalos de confiança para planejamento
+            3. Considere tendências significativas nas decisões
+            """)
+        
+        with col2:
+            st.markdown("""
+            **Limitações do Modelo:**
+            - Assume tendência linear
+            - Sensível a mudanças bruscas
+            - Requer monitoramento contínuo
+            """)
+            
+            st.markdown("""
+            **Próximos Passos:**
+            1. Atualizar dados mensalmente
+            2. Validar previsões vs. realizado
+            3. Ajustar modelos conforme necessário
+            """)
+
+    except Exception as e:
+        st.error(f"""
+        ❌ Erro ao gerar previsões e análises estatísticas.
+        
+        Erro: {str(e)}
+        
+        Verifique:
+        1. Formato dos dados
+        2. Quantidade de dados históricos
+        3. Dependências instaladas
+        """)
 
 # Footer
 st.markdown("---")
 st.caption("Dashboard de Marketing - SaaS ERP | Atualizado em Setembro 2025")
-    
-# Forecast Tab
-with tab6:
-    st.subheader("🔮 Forecast: Cenários para Projeção e Estratégia")
-    meses = df['Mês'].tolist()
-    meses_num = np.arange(len(meses)).reshape(-1, 1)
-    previsao_meses = ["Out/25", "Nov/25", "Dez/25"]
-    meses_num_forecast = np.arange(len(meses), len(meses)+len(previsao_meses)).reshape(-1, 1)
-
-    def prever_cenarios(col):
-        modelo = LinearRegression()
-        modelo.fit(meses_num, df[col].values)
-        base = modelo.predict(meses_num_forecast)
-        # Cenário otimista: +10% de crescimento sobre a tendência
-        otimista = base * 1.10
-        # Cenário conservador: -10% sobre a tendência
-        conservador = base * 0.90
-        # Cenário realista: tendência linear
-        realista = base
-        return otimista, realista, conservador
-
-    kpis = ["Leads", "Clientes Web", "Receita Web", "CAC", "LTV", "ROI (%)"]
-    resultados_otimista, resultados_realista, resultados_conservador = {}, {}, {}
-    for kpi in kpis:
-        ot, rl, cv = prever_cenarios(kpi)
-        resultados_otimista[kpi] = ot
-        resultados_realista[kpi] = rl
-        resultados_conservador[kpi] = cv
-
-    df_otimista = pd.DataFrame({
-        "Mês": previsao_meses,
-        **{k: resultados_otimista[k].round(2) for k in kpis}
-    })
-    df_realista = pd.DataFrame({
-        "Mês": previsao_meses,
-        **{k: resultados_realista[k].round(2) for k in kpis}
-    })
-    df_conservador = pd.DataFrame({
-        "Mês": previsao_meses,
-        **{k: resultados_conservador[k].round(2) for k in kpis}
-    })
-
-    st.markdown("### Tabela de Projeções por Cenário")
-    st.markdown("**Cenário Otimista**")
-    st.dataframe(df_otimista, use_container_width=True, hide_index=True)
-    st.markdown("**Cenário Realista**")
-    st.dataframe(df_realista, use_container_width=True, hide_index=True)
-    st.markdown("**Cenário Conservador**")
-    st.dataframe(df_conservador, use_container_width=True, hide_index=True)
-
-    st.markdown("### Gráficos de Projeção por Cenário")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        fig_leads = go.Figure()
-        fig_leads.add_trace(go.Scatter(x=meses, y=df["Leads"], mode="lines+markers", name="Histórico"))
-        fig_leads.add_trace(go.Scatter(x=previsao_meses, y=df_otimista["Leads"], mode="lines+markers", name="Otimista"))
-        fig_leads.add_trace(go.Scatter(x=previsao_meses, y=df_realista["Leads"], mode="lines+markers", name="Realista"))
-        fig_leads.add_trace(go.Scatter(x=previsao_meses, y=df_conservador["Leads"], mode="lines+markers", name="Conservador"))
-        fig_leads.update_layout(title="Leads - Cenários", height=350)
-        st.plotly_chart(fig_leads, use_container_width=True)
-    with col2:
-        fig_receita = go.Figure()
-        fig_receita.add_trace(go.Scatter(x=meses, y=df["Receita Web"], mode="lines+markers", name="Histórico"))
-        fig_receita.add_trace(go.Scatter(x=previsao_meses, y=df_otimista["Receita Web"], mode="lines+markers", name="Otimista"))
-        fig_receita.add_trace(go.Scatter(x=previsao_meses, y=df_realista["Receita Web"], mode="lines+markers", name="Realista"))
-        fig_receita.add_trace(go.Scatter(x=previsao_meses, y=df_conservador["Receita Web"], mode="lines+markers", name="Conservador"))
-        fig_receita.update_layout(title="Receita Web - Cenários", height=350)
-        st.plotly_chart(fig_receita, use_container_width=True)
-    with col3:
-        fig_cac = go.Figure()
-        fig_cac.add_trace(go.Scatter(x=meses, y=df["CAC"], mode="lines+markers", name="Histórico"))
-        fig_cac.add_trace(go.Scatter(x=previsao_meses, y=df_otimista["CAC"], mode="lines+markers", name="Otimista"))
-        fig_cac.add_trace(go.Scatter(x=previsao_meses, y=df_realista["CAC"], mode="lines+markers", name="Realista"))
-        fig_cac.add_trace(go.Scatter(x=previsao_meses, y=df_conservador["CAC"], mode="lines+markers", name="Conservador"))
-        fig_cac.update_layout(title="CAC - Cenários", height=350)
-        st.plotly_chart(fig_cac, use_container_width=True)
-
-    st.markdown("### Estratégias e Insumos para Decisão por Cenário")
-    st.info(f"""
-    **Otimista:**
-    - Aproveitar o crescimento acelerado para investir em expansão e novos canais.
-    - Reforçar ações de retenção e upsell para maximizar receita.
-    - Monitorar custos para não perder margem.
-
-    **Realista:**
-    - Manter investimentos atuais, focar em eficiência operacional.
-    - Revisar funil comercial e ajustar campanhas conforme performance.
-    - Priorizar ações de baixo custo e alto impacto.
-
-    **Conservador:**
-    - Reduzir gastos em canais pagos, priorizar orgânico e relacionamento.
-    - Foco total em retenção e redução de churn.
-    - Revisar metas e preparar plano de contingência.
-    """)
-
-    st.markdown("#### Insumos para Decisão Assertiva:")
-    st.markdown("""
-    - Relatórios detalhados de campanhas (Google Ads, Meta)
-    - Análise de churn e satisfação dos clientes
-    - Dados de funil comercial e taxas de conversão
-    - Projeção de custos e receitas por canal
-    - Benchmark do setor atualizado
-    """)
-
-    st.success("Compare os cenários para definir metas, ajustar investimentos e priorizar ações conforme o contexto do negócio.")
-
-    st.markdown("---")
-    st.caption("Forecast com cenários para apoiar decisões estratégicas de marketing e vendas.")
