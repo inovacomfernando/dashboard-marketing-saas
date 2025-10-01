@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 # Configuração da página
 st.set_page_config(
