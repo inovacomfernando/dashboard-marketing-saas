@@ -656,6 +656,23 @@ with tab6:
 with tab7:
     st.subheader("🤝 Parceria Contador: Simulação de Indicadores")
     
+    # Definição dos planos e extensões
+    planos = {
+        'MEI': 69.90,
+        'Simples Nacional': 119.90,
+        'Lucro Real/Presumido': 179.90
+    }
+    
+    extensoes = {
+        'Controle de Estoque': 15.99,
+        'Controle Financeiro': 15.99,
+        'Emissão de Boleto Bancário': 15.99,
+        'Comissão de Vendedores': 15.99,
+        'Nota Fiscal de Serviço': 39.90,
+        'PDV': 39.90,
+        'Força de Vendas': 39.90
+    }
+    
     # Controles de configuração da parceria
     st.markdown("### ⚙️ Configuração do Modelo de Parceria")
     
@@ -668,7 +685,7 @@ with tab7:
             max_value=25.0,
             value=15.0,
             step=0.5,
-            help="Ajuste o percentual de comissão mensal sobre o ticket"
+            help="Ajuste o percentual de comissão mensal sobre o valor do plano + extensões"
         ) / 100
         
         st.info(f"💡 Comissão selecionada: **{percentual_comissao*100:.1f}%**")
@@ -687,6 +704,66 @@ with tab7:
     
     st.markdown("---")
     
+    # Seleção de Plano e Extensões
+    st.markdown("### 📦 Configuração do Plano do Cliente")
+    
+    col_plano1, col_plano2 = st.columns([1, 1])
+    
+    with col_plano1:
+        plano_selecionado = st.selectbox(
+            "Selecione o Plano:",
+            options=list(planos.keys()),
+            index=1,  # Simples Nacional como padrão
+            help="Escolha o plano base do cliente"
+        )
+        
+        valor_plano = planos[plano_selecionado]
+        st.metric("Valor do Plano", f"R$ {valor_plano:.2f}")
+    
+    with col_plano2:
+        extensoes_selecionadas = st.multiselect(
+            "Selecione as Extensões (opcional):",
+            options=list(extensoes.keys()),
+            help="Adicione extensões ao plano base"
+        )
+        
+        valor_extensoes = sum([extensoes[ext] for ext in extensoes_selecionadas])
+        st.metric("Valor das Extensões", f"R$ {valor_extensoes:.2f}")
+    
+    # Cálculo do valor total
+    valor_total_mensal = valor_plano + valor_extensoes
+    comissao_mensal = valor_total_mensal * percentual_comissao
+    
+    # Exibir resumo do plano configurado
+    st.markdown("#### 💰 Resumo do Plano Configurado")
+    
+    col_resumo1, col_resumo2, col_resumo3, col_resumo4 = st.columns(4)
+    
+    with col_resumo1:
+        st.metric("Plano Base", f"R$ {valor_plano:.2f}")
+    
+    with col_resumo2:
+        st.metric("Extensões", f"R$ {valor_extensoes:.2f}")
+    
+    with col_resumo3:
+        st.metric("Total Mensal", f"R$ {valor_total_mensal:.2f}", 
+                  delta=f"+R$ {valor_extensoes:.2f}" if valor_extensoes > 0 else None)
+    
+    with col_resumo4:
+        st.metric("Comissão Mensal", f"R$ {comissao_mensal:.2f}",
+                  delta=f"{percentual_comissao*100:.1f}%")
+    
+    # Detalhamento das extensões selecionadas
+    if extensoes_selecionadas:
+        with st.expander("📋 Detalhamento das Extensões Selecionadas"):
+            df_extensoes = pd.DataFrame({
+                'Extensão': extensoes_selecionadas,
+                'Valor Mensal': [f"R$ {extensoes[ext]:.2f}" for ext in extensoes_selecionadas]
+            })
+            st.dataframe(df_extensoes, use_container_width=True, hide_index=True)
+    
+    st.markdown("---")
+    
     # Valores médios baseados nos dados filtrados
     ticket_medio = df_filtered['Ticket Médio'].mean()
     roi_medio = df_filtered['ROI (%)'].mean()
@@ -698,21 +775,26 @@ with tab7:
     custo_por_lead_max = 50
     custo_por_lead_medio = (custo_por_lead_min + custo_por_lead_max) / 2
     
-    # Comissão mensal (não acumulada) - CALCULADA COM BASE NO SLIDER
-    comissao_mensal = ticket_medio * percentual_comissao
-    
     # Informações do modelo de parceria
     st.markdown(f"""
     <div class="metric-card">
         <h4>📋 Resumo do Modelo de Parceria</h4>
         <ul>
-            <li>Comissão: <strong>{percentual_comissao*100:.1f}%</strong> sobre o ticket mensal por <strong>{meses_comissao} meses</strong></li>
-            <li>Comissão mensal por cliente: <strong>R$ {comissao_mensal:.2f}</strong></li>
-            <li>Ticket Médio atual: <strong>R$ {ticket_medio:.2f}</strong></li>
-            <li>ROI médio: <strong>{roi_medio:.1f}%</strong></li>
-            <li>LTV médio: <strong>R$ {ltv_medio:.2f}</strong></li>
-            <li>CAC médio (via ads): <strong>R$ {cac_medio:.2f}</strong></li>
-            <li>Custo por Lead atual: <strong>R$ {custo_por_lead_min:.2f} - R$ {custo_por_lead_max:.2f}</strong></li>
+            <li><strong>Plano:</strong> {plano_selecionado} - R$ {valor_plano:.2f}/mês</li>
+            <li><strong>Extensões:</strong> {len(extensoes_selecionadas)} selecionada(s) - R$ {valor_extensoes:.2f}/mês</li>
+            <li><strong>Valor Total Mensal:</strong> R$ {valor_total_mensal:.2f}</li>
+            <li><strong>Comissão:</strong> {percentual_comissao*100:.1f}% sobre o valor total por {meses_comissao} meses</li>
+            <li><strong>Comissão mensal por cliente:</strong> R$ {comissao_mensal:.2f}</li>
+            <li><strong>Comissão total (6 meses):</strong> R$ {comissao_mensal * meses_comissao:.2f}</li>
+        </ul>
+        <hr>
+        <h5>Dados de Referência do Dashboard:</h5>
+        <ul>
+            <li>Ticket Médio histórico: R$ {ticket_medio:.2f}</li>
+            <li>ROI médio: {roi_medio:.1f}%</li>
+            <li>LTV médio: R$ {ltv_medio:.2f}</li>
+            <li>CAC médio (via ads): R$ {cac_medio:.2f}</li>
+            <li>Custo por Lead atual: R$ {custo_por_lead_min:.2f} - R$ {custo_por_lead_max:.2f}</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -779,8 +861,8 @@ with tab7:
     st.markdown("### 💰 Simulação: Receita Mensal por Cliente Indicado")
     
     # Cálculos mensais (não acumulados)
-    comissao_total_6m = comissao_mensal * meses_comissao  # Total que o contador recebe em 6 meses
-    receita_mensal_empresa = ticket_medio  # Receita mensal da empresa por cliente
+    comissao_total_6m = comissao_mensal * meses_comissao  # Total que o contador recebe
+    receita_mensal_empresa = valor_total_mensal  # Receita mensal da empresa por cliente
     receita_6m_empresa = receita_mensal_empresa * meses_comissao  # Receita empresa em 6 meses
     
     col1, col2, col3, col4 = st.columns(4)
@@ -789,13 +871,15 @@ with tab7:
         st.metric("Comissão Mensal", f"R$ {comissao_mensal:,.2f}")
     
     with col2:
-        st.metric("Comissão Total (6m)", f"R$ {comissao_total_6m:,.2f}")
+        st.metric(f"Comissão Total ({meses_comissao}m)", f"R$ {comissao_total_6m:,.2f}")
     
     with col3:
         st.metric("Receita Empresa/Mês", f"R$ {receita_mensal_empresa:,.2f}")
     
     with col4:
-        st.metric("LTV Estimado", f"R$ {ltv_medio:,.2f}")
+        # LTV estimado com base no plano configurado
+        ltv_estimado = valor_total_mensal * 12  # Estimativa: 12 meses de retenção
+        st.metric("LTV Estimado (12m)", f"R$ {ltv_estimado:,.2f}")
     
     # Tabela detalhada mês a mês
     st.markdown("#### 📅 Detalhamento Mês a Mês (Por Cliente)")
@@ -803,10 +887,10 @@ with tab7:
     meses_detalhe = [f"Mês {i+1}" for i in range(meses_comissao)]
     dados_mensais = {
         'Mês': meses_detalhe,
-        'Receita Empresa': [receita_mensal_empresa] * meses_comissao,
-        'Comissão Contador': [comissao_mensal] * meses_comissao,
-        '% Comissão': [f"{percentual_comissao*100:.0f}%"] * meses_comissao,
-        'Lucro Empresa': [receita_mensal_empresa - comissao_mensal] * meses_comissao
+        'Receita Empresa': [f"R$ {receita_mensal_empresa:.2f}"] * meses_comissao,
+        'Comissão Contador': [f"R$ {comissao_mensal:.2f}"] * meses_comissao,
+        '% Comissão': [f"{percentual_comissao*100:.1f}%"] * meses_comissao,
+        'Lucro Empresa': [f"R$ {receita_mensal_empresa - comissao_mensal:.2f}"] * meses_comissao
     }
     
     df_mensal = pd.DataFrame(dados_mensais)
@@ -819,18 +903,22 @@ with tab7:
         x=meses_detalhe,
         y=[receita_mensal_empresa] * meses_comissao,
         name='Receita Empresa',
-        marker_color='#10b981'
+        marker_color='#10b981',
+        text=[f'R$ {receita_mensal_empresa:.2f}'] * meses_comissao,
+        textposition='outside'
     ))
     
     fig_mensal.add_trace(go.Bar(
         x=meses_detalhe,
         y=[comissao_mensal] * meses_comissao,
         name='Comissão Contador',
-        marker_color='#3b82f6'
+        marker_color='#3b82f6',
+        text=[f'R$ {comissao_mensal:.2f}'] * meses_comissao,
+        textposition='outside'
     ))
     
     fig_mensal.update_layout(
-        title="Distribuição Mensal: Receita vs Comissão (por cliente)",
+        title=f"Distribuição Mensal: {plano_selecionado} + {len(extensoes_selecionadas)} extensão(ões)",
         xaxis_title="Período",
         yaxis_title="Valor (R$)",
         height=400,
@@ -875,7 +963,7 @@ with tab7:
     
     with col2:
         # Relação CAC:LTV para indicação
-        cac_ltv_indicacao = ltv_medio / cac_indicacao
+        cac_ltv_indicacao = ltv_estimado / cac_indicacao
         cac_ltv_ads = ltv_medio / cac_medio
         
         fig_ratio = go.Figure()
@@ -1057,7 +1145,8 @@ with tab7:
             <h4>✅ Vantagens da Parceria</h4>
             <ul>
                 <li><strong>Menor CAC:</strong> Economia de R$ {:.2f} por cliente (redução de {:.1f}%)</li>
-                <li><strong>Comissão competitiva:</strong> R$ {:.2f}/mês representa {:.0f}% do custo médio por lead</li>
+                <li><strong>Comissão competitiva:</strong> R$ {:.2f}/mês ({:.1f}% sobre plano de R$ {:.2f})</li>
+                <li><strong>Flexibilidade:</strong> Comissão ajustada ao plano + extensões contratadas</li>
                 <li><strong>Maior qualidade:</strong> Indicações geralmente têm melhor fit e maior taxa de conversão</li>
                 <li><strong>Relação CAC:LTV melhor:</strong> {:.1f}:1 vs {:.1f}:1 (ads)</li>
                 <li><strong>Sem risco:</strong> Pagamento apenas após conversão em cliente</li>
@@ -1070,7 +1159,8 @@ with tab7:
             economia_vs_ads, 
             (economia_vs_ads/cac_medio)*100, 
             comissao_mensal,
-            ratio_medio,
+            percentual_comissao*100,
+            valor_total_mensal,
             cac_ltv_indicacao, 
             cac_ltv_ads
         ), unsafe_allow_html=True)
@@ -1138,19 +1228,63 @@ with tab7:
             'LTV Médio Clientes Indicados',
             'Tempo Médio de Conversão',
             'NPS dos Parceiros',
-            'Receita via Parceria (%)'
+            'Receita via Parceria (%)',
+            'Ticket Médio Parceria'
         ],
-        'Meta Mês 3': ['15', '10', '40%', f'R$ {cac_indicacao:.2f}', f'R$ {ltv_medio:.2f}', '30 dias', '8+', '10%'],
-        'Meta Mês 6': ['30', '20', '45%', f'R$ {cac_indicacao*0.9:.2f}', f'R$ {ltv_medio*1.1:.2f}', '25 dias', '9+', '20%'],
-        'Meta Mês 12': ['50+', '30+', '50%', f'R$ {cac_indicacao*0.8:.2f}', f'R$ {ltv_medio*1.2:.2f}', '20 dias', '9+', '30%']
+        'Meta Mês 3': ['15', '10', '40%', f'R$ {cac_indicacao:.2f}', f'R$ {ltv_estimado:.2f}', '30 dias', '8+', '10%', f'R$ {valor_total_mensal:.2f}'],
+        'Meta Mês 6': ['30', '20', '45%', f'R$ {cac_indicacao*0.9:.2f}', f'R$ {ltv_estimado*1.1:.2f}', '25 dias', '9+', '20%', f'R$ {valor_total_mensal*1.15:.2f}'],
+        'Meta Mês 12': ['50+', '30+', '50%', f'R$ {cac_indicacao*0.8:.2f}', f'R$ {ltv_estimado*1.2:.2f}', '20 dias', '9+', '30%', f'R$ {valor_total_mensal*1.3:.2f}']
     })
     
     st.dataframe(kpis_parceria, use_container_width=True, hide_index=True)
     
+    # Comparativo de planos
+    st.markdown("### 📊 Comparativo: Comissão por Tipo de Plano")
+    
+    # Calcular comissões para cada plano
+    dados_comparativo = []
+    for nome_plano, valor_base in planos.items():
+        comissao_plano = valor_base * percentual_comissao
+        comissao_total_plano = comissao_plano * meses_comissao
+        dados_comparativo.append({
+            'Plano': nome_plano,
+            'Valor Mensal': f'R$ {valor_base:.2f}',
+            'Comissão Mensal': f'R$ {comissao_plano:.2f}',
+            f'Comissão Total ({meses_comissao}m)': f'R$ {comissao_total_plano:.2f}'
+        })
+    
+    df_comparativo = pd.DataFrame(dados_comparativo)
+    st.dataframe(df_comparativo, use_container_width=True, hide_index=True)
+    
+    # Gráfico comparativo
+    fig_comp_planos = go.Figure()
+    
+    planos_nomes = list(planos.keys())
+    comissoes_mensais = [planos[p] * percentual_comissao for p in planos_nomes]
+    
+    fig_comp_planos.add_trace(go.Bar(
+        x=planos_nomes,
+        y=comissoes_mensais,
+        marker_color=['#10b981', '#3b82f6', '#8b5cf6'],
+        text=[f'R$ {v:.2f}' for v in comissoes_mensais],
+        textposition='outside'
+    ))
+    
+    fig_comp_planos.update_layout(
+        title=f"Comissão Mensal por Plano ({percentual_comissao*100:.1f}%)",
+        xaxis_title="Tipo de Plano",
+        yaxis_title="Comissão (R$)",
+        height=400,
+        showlegend=False
+    )
+    
+    st.plotly_chart(fig_comp_planos, use_container_width=True)
+    
     st.info("""
-    💡 **Nota:** Os cálculos utilizam os valores médios dos dados históricos. 
-    Para análises mais precisas, recomenda-se criar uma coluna de origem do lead 
-    para rastrear especificamente os clientes vindos de indicações de contadores.
+    💡 **Nota:** Os cálculos utilizam o plano e extensões selecionados acima. 
+    Configure diferentes combinações para simular diversos cenários de parceria.
+    Para análises mais precisas, recomenda-se rastrear a origem dos leads e 
+    os planos contratados por clientes vindos de indicações de contadores.
     """)
 
 # Footer
