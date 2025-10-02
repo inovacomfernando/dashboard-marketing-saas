@@ -666,53 +666,160 @@ with tab7:
     ltv_medio = df_filtered['LTV'].mean()
     cac_medio = df_filtered['CAC'].mean()
     
+    # Cálculo do custo por lead
+    custo_por_lead_min = 25
+    custo_por_lead_max = 50
+    custo_por_lead_medio = (custo_por_lead_min + custo_por_lead_max) / 2
+    
+    # Comissão mensal (não acumulada)
+    comissao_mensal = ticket_medio * percentual_comissao
+    
     # Informações do modelo de parceria
     st.markdown(f"""
     <div class="metric-card">
         <h4>📋 Modelo de Parceria</h4>
         <ul>
-            <li>Comissão: <strong>{percentual_comissao*100:.0f}%</strong> sobre o ticket mensal nos primeiros <strong>{meses_comissao} meses</strong></li>
+            <li>Comissão: <strong>{percentual_comissao*100:.0f}%</strong> sobre o ticket mensal por <strong>{meses_comissao} meses</strong></li>
+            <li>Comissão mensal por cliente: <strong>R$ {comissao_mensal:.2f}</strong></li>
             <li>Ticket Médio atual: <strong>R$ {ticket_medio:.2f}</strong></li>
             <li>ROI médio: <strong>{roi_medio:.1f}%</strong></li>
             <li>LTV médio: <strong>R$ {ltv_medio:.2f}</strong></li>
             <li>CAC médio (via ads): <strong>R$ {cac_medio:.2f}</strong></li>
+            <li>Custo por Lead atual: <strong>R$ {custo_por_lead_min:.2f} - R$ {custo_por_lead_max:.2f}</strong></li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Simulação de receita do contador
-    st.markdown("### 💰 Simulação: Receita por Cliente Indicado")
+    # Análise: Comissão vs Custo por Lead
+    st.markdown("### 💡 Análise: Comissão vs Custo por Lead")
     
-    # Cálculos
-    receita_6m = ticket_medio * meses_comissao
-    comissao_contador = receita_6m * percentual_comissao
-    cac_indicacao = comissao_contador  # CAC da indicação é igual à comissão
-    economia_vs_ads = cac_medio - cac_indicacao
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Comparativo visual
+        fig_comp = go.Figure()
+        fig_comp.add_trace(go.Bar(
+            x=['Custo Lead Mín', 'Custo Lead Máx', 'Custo Lead Médio', 'Comissão Mensal'],
+            y=[custo_por_lead_min, custo_por_lead_max, custo_por_lead_medio, comissao_mensal],
+            marker_color=['#fbbf24', '#f59e0b', '#d97706', '#10b981'],
+            text=[f'R$ {custo_por_lead_min:.2f}', f'R$ {custo_por_lead_max:.2f}', 
+                  f'R$ {custo_por_lead_medio:.2f}', f'R$ {comissao_mensal:.2f}'],
+            textposition='outside'
+        ))
+        fig_comp.update_layout(
+            title="Comparação: Custo Lead vs Comissão Contador",
+            height=350,
+            showlegend=False,
+            yaxis_title="Valor (R$)"
+        )
+        st.plotly_chart(fig_comp, use_container_width=True)
+    
+    with col2:
+        # Análise do percentual
+        ratio_min = (comissao_mensal / custo_por_lead_max) * 100
+        ratio_max = (comissao_mensal / custo_por_lead_min) * 100
+        ratio_medio = (comissao_mensal / custo_por_lead_medio) * 100
+        
+        st.markdown("**Análise do Percentual de 15%:**")
+        st.metric("Comissão vs Custo Lead Mín", f"{ratio_max:.0f}%", 
+                  "✅ Saudável" if ratio_max <= 100 else "⚠️ Alto")
+        st.metric("Comissão vs Custo Lead Máx", f"{ratio_min:.0f}%", 
+                  "✅ Saudável" if ratio_min <= 100 else "⚠️ Alto")
+        st.metric("Comissão vs Custo Lead Médio", f"{ratio_medio:.0f}%", 
+                  "✅ Saudável" if ratio_medio <= 100 else "⚠️ Alto")
+        
+        if ratio_medio <= 100:
+            status_comissao = "success-box"
+            icone = "✅"
+            mensagem = f"O percentual de <strong>{percentual_comissao*100:.0f}%</strong> é <strong>saudável</strong>! A comissão mensal (R$ {comissao_mensal:.2f}) representa apenas <strong>{ratio_medio:.0f}%</strong> do custo médio por lead."
+        else:
+            status_comissao = "alert-box"
+            icone = "⚠️"
+            mensagem = f"O percentual de <strong>{percentual_comissao*100:.0f}%</strong> está <strong>alto</strong>. A comissão mensal (R$ {comissao_mensal:.2f}) representa <strong>{ratio_medio:.0f}%</strong> do custo médio por lead."
+        
+        st.markdown(f"""
+        <div class="{status_comissao}">
+            <h4>{icone} Conclusão</h4>
+            <p>{mensagem}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Simulação de receita do contador - MÊS A MÊS
+    st.markdown("### 💰 Simulação: Receita Mensal por Cliente Indicado")
+    
+    # Cálculos mensais (não acumulados)
+    comissao_total_6m = comissao_mensal * meses_comissao  # Total que o contador recebe em 6 meses
+    receita_mensal_empresa = ticket_medio  # Receita mensal da empresa por cliente
+    receita_6m_empresa = receita_mensal_empresa * meses_comissao  # Receita empresa em 6 meses
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Receita 6 meses", f"R$ {receita_6m:,.2f}")
+        st.metric("Comissão Mensal", f"R$ {comissao_mensal:,.2f}")
     
     with col2:
-        st.metric("Comissão Contador", f"R$ {comissao_contador:,.2f}")
+        st.metric("Comissão Total (6m)", f"R$ {comissao_total_6m:,.2f}")
     
     with col3:
-        st.metric("LTV Estimado", f"R$ {ltv_medio:,.2f}")
+        st.metric("Receita Empresa/Mês", f"R$ {receita_mensal_empresa:,.2f}")
     
     with col4:
-        st.metric(
-            "Economia vs Ads", 
-            f"R$ {economia_vs_ads:,.2f}",
-            f"{(economia_vs_ads/cac_medio)*100:.1f}%"
-        )
+        st.metric("LTV Estimado", f"R$ {ltv_medio:,.2f}")
+    
+    # Tabela detalhada mês a mês
+    st.markdown("#### 📅 Detalhamento Mês a Mês (Por Cliente)")
+    
+    meses_detalhe = [f"Mês {i+1}" for i in range(meses_comissao)]
+    dados_mensais = {
+        'Mês': meses_detalhe,
+        'Receita Empresa': [receita_mensal_empresa] * meses_comissao,
+        'Comissão Contador': [comissao_mensal] * meses_comissao,
+        '% Comissão': [f"{percentual_comissao*100:.0f}%"] * meses_comissao,
+        'Lucro Empresa': [receita_mensal_empresa - comissao_mensal] * meses_comissao
+    }
+    
+    df_mensal = pd.DataFrame(dados_mensais)
+    st.dataframe(df_mensal, use_container_width=True, hide_index=True)
+    
+    # Gráfico mês a mês
+    fig_mensal = go.Figure()
+    
+    fig_mensal.add_trace(go.Bar(
+        x=meses_detalhe,
+        y=[receita_mensal_empresa] * meses_comissao,
+        name='Receita Empresa',
+        marker_color='#10b981'
+    ))
+    
+    fig_mensal.add_trace(go.Bar(
+        x=meses_detalhe,
+        y=[comissao_mensal] * meses_comissao,
+        name='Comissão Contador',
+        marker_color='#3b82f6'
+    ))
+    
+    fig_mensal.update_layout(
+        title="Distribuição Mensal: Receita vs Comissão (por cliente)",
+        xaxis_title="Período",
+        yaxis_title="Valor (R$)",
+        height=400,
+        barmode='group'
+    )
+    
+    st.plotly_chart(fig_mensal, use_container_width=True)
     
     st.markdown("---")
     
     # Comparativo CAC
     st.markdown("### 📊 Comparativo: CAC Ads vs CAC Indicação")
+    
+    # CAC da indicação = total de comissões pagas
+    cac_indicacao = comissao_total_6m
+    economia_vs_ads = cac_medio - cac_indicacao
     
     col1, col2 = st.columns(2)
     
@@ -731,6 +838,13 @@ with tab7:
             showlegend=False
         )
         st.plotly_chart(fig_cac, use_container_width=True)
+        
+        # Métricas de economia
+        st.metric(
+            "Economia vs Ads", 
+            f"R$ {economia_vs_ads:,.2f}",
+            f"{(economia_vs_ads/cac_medio)*100:.1f}%"
+        )
     
     with col2:
         # Relação CAC:LTV para indicação
@@ -784,10 +898,18 @@ with tab7:
         )
     
     with col2:
-        # Cálculos da simulação
+        # Cálculos da simulação - MÊS A MÊS
         total_clientes = num_clientes * meses_simulacao
-        comissao_total = comissao_contador * total_clientes
-        receita_empresa = receita_6m * total_clientes
+        
+        # Comissão mensal = num_clientes * comissão_mensal
+        comissao_mensal_total = num_clientes * comissao_mensal
+        comissao_total_periodo = comissao_mensal_total * meses_simulacao
+        
+        # Receita mensal da empresa
+        receita_mensal_total = num_clientes * receita_mensal_empresa
+        receita_total_periodo = receita_mensal_total * meses_simulacao
+        
+        # Economia total
         economia_total = economia_vs_ads * total_clientes
         
         st.markdown("**Resultados da Simulação**")
@@ -796,16 +918,16 @@ with tab7:
         
         with col_a:
             st.metric("Total Clientes", f"{total_clientes}")
-            st.metric("Receita Empresa", f"R$ {receita_empresa:,.2f}")
+            st.metric("Comissão/Mês", f"R$ {comissao_mensal_total:,.2f}")
         
         with col_b:
-            st.metric("Comissão Total", f"R$ {comissao_total:,.2f}")
-            st.metric("Economia Total", f"R$ {economia_total:,.2f}")
+            st.metric("Comissão Total", f"R$ {comissao_total_periodo:,.2f}")
+            st.metric("Receita/Mês", f"R$ {receita_mensal_total:,.2f}")
         
         with col_c:
-            roi_indicacao = ((receita_empresa - comissao_total) / comissao_total) * 100
+            roi_indicacao = ((receita_total_periodo - comissao_total_periodo) / comissao_total_periodo) * 100
             st.metric("ROI Indicação", f"{roi_indicacao:.1f}%")
-            st.metric("% do Custo", f"{(comissao_total/receita_empresa)*100:.1f}%")
+            st.metric("Economia Total", f"R$ {economia_total:,.2f}")
     
     st.markdown("---")
     
@@ -813,39 +935,89 @@ with tab7:
     st.markdown("### 📈 Projeção Mensal de Crescimento")
     
     meses_proj = [f"Mês {i+1}" for i in range(meses_simulacao)]
-    clientes_acum = [num_clientes * (i+1) for i in range(meses_simulacao)]
-    receita_acum = [receita_6m * num_clientes * (i+1) for i in range(meses_simulacao)]
-    comissao_acum = [comissao_contador * num_clientes * (i+1) for i in range(meses_simulacao)]
     
-    fig_proj = go.Figure()
+    # Novos clientes a cada mês
+    novos_clientes_mes = [num_clientes] * meses_simulacao
     
-    fig_proj.add_trace(go.Scatter(
-        x=meses_proj,
-        y=receita_acum,
-        name='Receita Acumulada',
-        mode='lines+markers',
-        line=dict(color='#10b981', width=3),
-        marker=dict(size=10)
-    ))
+    # Receita e comissão MENSAL (não acumulada)
+    # A cada mês entra num_clientes novos, mas os antigos continuam pagando
+    receita_mensal_proj = []
+    comissao_mensal_proj = []
     
-    fig_proj.add_trace(go.Scatter(
-        x=meses_proj,
-        y=comissao_acum,
-        name='Comissão Acumulada',
-        mode='lines+markers',
-        line=dict(color='#3b82f6', width=3),
-        marker=dict(size=10)
-    ))
+    for i in range(meses_simulacao):
+        # Clientes ativos no mês = todos que entraram nos últimos 6 meses
+        # (após 6 meses, não há mais comissão)
+        clientes_ativos = min((i + 1) * num_clientes, num_clientes * min(i + 1, meses_comissao))
+        
+        # Receita mensal
+        receita_mes = clientes_ativos * receita_mensal_empresa
+        receita_mensal_proj.append(receita_mes)
+        
+        # Comissão mensal: apenas clientes nos primeiros 6 meses
+        if i < meses_comissao:
+            comissao_mes = (i + 1) * num_clientes * comissao_mensal
+        else:
+            # Após o 6º mês, sempre haverá 6 meses de clientes pagando comissão
+            comissao_mes = num_clientes * meses_comissao * comissao_mensal
+        
+        comissao_mensal_proj.append(comissao_mes)
     
-    fig_proj.update_layout(
-        title=f"Projeção com {num_clientes} indicações/mês",
-        xaxis_title="Período",
-        yaxis_title="Valor (R$)",
-        height=400,
-        hovermode='x unified'
+    fig_proj = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=('Receita Mensal da Empresa', 'Comissão Mensal aos Contadores'),
+        vertical_spacing=0.15
     )
     
+    # Gráfico 1: Receita
+    fig_proj.add_trace(
+        go.Bar(
+            x=meses_proj,
+            y=receita_mensal_proj,
+            name='Receita Mensal',
+            marker_color='#10b981',
+            text=[f'R$ {v:,.0f}' for v in receita_mensal_proj],
+            textposition='outside'
+        ),
+        row=1, col=1
+    )
+    
+    # Gráfico 2: Comissão
+    fig_proj.add_trace(
+        go.Bar(
+            x=meses_proj,
+            y=comissao_mensal_proj,
+            name='Comissão Mensal',
+            marker_color='#3b82f6',
+            text=[f'R$ {v:,.0f}' for v in comissao_mensal_proj],
+            textposition='outside'
+        ),
+        row=2, col=1
+    )
+    
+    fig_proj.update_layout(
+        title=f"Projeção com {num_clientes} novas indicações/mês",
+        height=600,
+        showlegend=False
+    )
+    
+    fig_proj.update_xaxes(title_text="Período", row=2, col=1)
+    fig_proj.update_yaxes(title_text="Receita (R$)", row=1, col=1)
+    fig_proj.update_yaxes(title_text="Comissão (R$)", row=2, col=1)
+    
     st.plotly_chart(fig_proj, use_container_width=True)
+    
+    # Resumo da projeção
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Receita Mensal (último mês)", f"R$ {receita_mensal_proj[-1]:,.2f}")
+    
+    with col2:
+        st.metric("Comissão Mensal (último mês)", f"R$ {comissao_mensal_proj[-1]:,.2f}")
+    
+    with col3:
+        margem_ultimo_mes = ((receita_mensal_proj[-1] - comissao_mensal_proj[-1]) / receita_mensal_proj[-1]) * 100
+        st.metric("Margem Líquida", f"{margem_ultimo_mes:.1f}%")
     
     st.markdown("---")
     
@@ -858,15 +1030,23 @@ with tab7:
             <h4>✅ Vantagens da Parceria</h4>
             <ul>
                 <li><strong>Menor CAC:</strong> Economia de R$ {:.2f} por cliente (redução de {:.1f}%)</li>
+                <li><strong>Comissão competitiva:</strong> R$ {:.2f}/mês representa {:.0f}% do custo médio por lead</li>
                 <li><strong>Maior qualidade:</strong> Indicações geralmente têm melhor fit e maior taxa de conversão</li>
                 <li><strong>Relação CAC:LTV melhor:</strong> {:.1f}:1 vs {:.1f}:1 (ads)</li>
                 <li><strong>Sem risco:</strong> Pagamento apenas após conversão em cliente</li>
                 <li><strong>Escalável:</strong> Rede de contadores pode crescer exponencialmente</li>
                 <li><strong>Confiança:</strong> Indicação de profissional de confiança aumenta credibilidade</li>
+                <li><strong>Modelo recorrente:</strong> Comissão mensal incentiva acompanhamento contínuo</li>
             </ul>
         </div>
-        """.format(economia_vs_ads, (economia_vs_ads/cac_medio)*100, cac_ltv_indicacao, cac_ltv_ads), 
-        unsafe_allow_html=True)
+        """.format(
+            economia_vs_ads, 
+            (economia_vs_ads/cac_medio)*100, 
+            comissao_mensal,
+            ratio_medio,
+            cac_ltv_indicacao, 
+            cac_ltv_ads
+        ), unsafe_allow_html=True)
     
     with col2:
         st.markdown("""
