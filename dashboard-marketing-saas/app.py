@@ -64,6 +64,13 @@ st.markdown("""
         border-radius: 0.5rem;
         margin: 1rem 0;
     }
+    .info-box {
+        background-color: #cfe2ff;
+        border-left: 4px solid #0d6efd;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -186,7 +193,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📈 Evolução", "💰 Financeiro", "🎯 Conversão", "📊 Benchmarks", "📋 Recomendações", "🔮 Forecast"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "📈 Evolução", 
+    "💰 Financeiro", 
+    "🎯 Conversão", 
+    "📊 Benchmarks", 
+    "📋 Recomendações", 
+    "🔮 Forecast",
+    "🤝 Parceria Contador"
+])
 
 with tab1:
     st.subheader("Evolução de Leads e Clientes")
@@ -637,6 +652,299 @@ with tab6:
         2. Quantidade de dados históricos
         3. Dependências instaladas
         """)
+
+with tab7:
+    st.subheader("🤝 Parceria Contador: Simulação de Indicadores")
+    
+    # Configurações da parceria
+    meses_comissao = 6
+    percentual_comissao = 0.15
+    
+    # Valores médios baseados nos dados filtrados
+    ticket_medio = df_filtered['Ticket Médio'].mean()
+    roi_medio = df_filtered['ROI (%)'].mean()
+    ltv_medio = df_filtered['LTV'].mean()
+    cac_medio = df_filtered['CAC'].mean()
+    
+    # Informações do modelo de parceria
+    st.markdown(f"""
+    <div class="metric-card">
+        <h4>📋 Modelo de Parceria</h4>
+        <ul>
+            <li>Comissão: <strong>{percentual_comissao*100:.0f}%</strong> sobre o ticket mensal nos primeiros <strong>{meses_comissao} meses</strong></li>
+            <li>Ticket Médio atual: <strong>R$ {ticket_medio:.2f}</strong></li>
+            <li>ROI médio: <strong>{roi_medio:.1f}%</strong></li>
+            <li>LTV médio: <strong>R$ {ltv_medio:.2f}</strong></li>
+            <li>CAC médio (via ads): <strong>R$ {cac_medio:.2f}</strong></li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Simulação de receita do contador
+    st.markdown("### 💰 Simulação: Receita por Cliente Indicado")
+    
+    # Cálculos
+    receita_6m = ticket_medio * meses_comissao
+    comissao_contador = receita_6m * percentual_comissao
+    cac_indicacao = comissao_contador  # CAC da indicação é igual à comissão
+    economia_vs_ads = cac_medio - cac_indicacao
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Receita 6 meses", f"R$ {receita_6m:,.2f}")
+    
+    with col2:
+        st.metric("Comissão Contador", f"R$ {comissao_contador:,.2f}")
+    
+    with col3:
+        st.metric("LTV Estimado", f"R$ {ltv_medio:,.2f}")
+    
+    with col4:
+        st.metric(
+            "Economia vs Ads", 
+            f"R$ {economia_vs_ads:,.2f}",
+            f"{(economia_vs_ads/cac_medio)*100:.1f}%"
+        )
+    
+    st.markdown("---")
+    
+    # Comparativo CAC
+    st.markdown("### 📊 Comparativo: CAC Ads vs CAC Indicação")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        fig_cac = go.Figure()
+        fig_cac.add_trace(go.Bar(
+            x=['CAC Google Ads', 'CAC Indicação'],
+            y=[cac_medio, cac_indicacao],
+            marker_color=['#ea4335', '#10b981'],
+            text=[f'R$ {cac_medio:.2f}', f'R$ {cac_indicacao:.2f}'],
+            textposition='outside'
+        ))
+        fig_cac.update_layout(
+            title="Comparação de CAC",
+            height=350,
+            showlegend=False
+        )
+        st.plotly_chart(fig_cac, use_container_width=True)
+    
+    with col2:
+        # Relação CAC:LTV para indicação
+        cac_ltv_indicacao = ltv_medio / cac_indicacao
+        cac_ltv_ads = ltv_medio / cac_medio
+        
+        fig_ratio = go.Figure()
+        fig_ratio.add_trace(go.Bar(
+            x=['CAC:LTV Ads', 'CAC:LTV Indicação'],
+            y=[cac_ltv_ads, cac_ltv_indicacao],
+            marker_color=['#ea4335', '#10b981'],
+            text=[f'{cac_ltv_ads:.1f}:1', f'{cac_ltv_indicacao:.1f}:1'],
+            textposition='outside'
+        ))
+        fig_ratio.add_hline(
+            y=4, 
+            line_dash="dash", 
+            line_color="orange",
+            annotation_text="Benchmark Ideal (4:1)"
+        )
+        fig_ratio.update_layout(
+            title="Relação CAC:LTV",
+            height=350,
+            showlegend=False
+        )
+        st.plotly_chart(fig_ratio, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Simulador interativo
+    st.markdown("### 🎯 Simulador de Impacto")
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("**Parâmetros da Simulação**")
+        num_clientes = st.slider(
+            "Número de clientes indicados/mês:",
+            min_value=1,
+            max_value=50,
+            value=10,
+            step=1
+        )
+        
+        meses_simulacao = st.slider(
+            "Período de simulação (meses):",
+            min_value=1,
+            max_value=12,
+            value=6,
+            step=1
+        )
+    
+    with col2:
+        # Cálculos da simulação
+        total_clientes = num_clientes * meses_simulacao
+        comissao_total = comissao_contador * total_clientes
+        receita_empresa = receita_6m * total_clientes
+        economia_total = economia_vs_ads * total_clientes
+        
+        st.markdown("**Resultados da Simulação**")
+        
+        col_a, col_b, col_c = st.columns(3)
+        
+        with col_a:
+            st.metric("Total Clientes", f"{total_clientes}")
+            st.metric("Receita Empresa", f"R$ {receita_empresa:,.2f}")
+        
+        with col_b:
+            st.metric("Comissão Total", f"R$ {comissao_total:,.2f}")
+            st.metric("Economia Total", f"R$ {economia_total:,.2f}")
+        
+        with col_c:
+            roi_indicacao = ((receita_empresa - comissao_total) / comissao_total) * 100
+            st.metric("ROI Indicação", f"{roi_indicacao:.1f}%")
+            st.metric("% do Custo", f"{(comissao_total/receita_empresa)*100:.1f}%")
+    
+    st.markdown("---")
+    
+    # Projeção mensal
+    st.markdown("### 📈 Projeção Mensal de Crescimento")
+    
+    meses_proj = [f"Mês {i+1}" for i in range(meses_simulacao)]
+    clientes_acum = [num_clientes * (i+1) for i in range(meses_simulacao)]
+    receita_acum = [receita_6m * num_clientes * (i+1) for i in range(meses_simulacao)]
+    comissao_acum = [comissao_contador * num_clientes * (i+1) for i in range(meses_simulacao)]
+    
+    fig_proj = go.Figure()
+    
+    fig_proj.add_trace(go.Scatter(
+        x=meses_proj,
+        y=receita_acum,
+        name='Receita Acumulada',
+        mode='lines+markers',
+        line=dict(color='#10b981', width=3),
+        marker=dict(size=10)
+    ))
+    
+    fig_proj.add_trace(go.Scatter(
+        x=meses_proj,
+        y=comissao_acum,
+        name='Comissão Acumulada',
+        mode='lines+markers',
+        line=dict(color='#3b82f6', width=3),
+        marker=dict(size=10)
+    ))
+    
+    fig_proj.update_layout(
+        title=f"Projeção com {num_clientes} indicações/mês",
+        xaxis_title="Período",
+        yaxis_title="Valor (R$)",
+        height=400,
+        hovermode='x unified'
+    )
+    
+    st.plotly_chart(fig_proj, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Análise de benefícios
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div class="success-box">
+            <h4>✅ Vantagens da Parceria</h4>
+            <ul>
+                <li><strong>Menor CAC:</strong> Economia de R$ {:.2f} por cliente (redução de {:.1f}%)</li>
+                <li><strong>Maior qualidade:</strong> Indicações geralmente têm melhor fit e maior taxa de conversão</li>
+                <li><strong>Relação CAC:LTV melhor:</strong> {:.1f}:1 vs {:.1f}:1 (ads)</li>
+                <li><strong>Sem risco:</strong> Pagamento apenas após conversão em cliente</li>
+                <li><strong>Escalável:</strong> Rede de contadores pode crescer exponencialmente</li>
+                <li><strong>Confiança:</strong> Indicação de profissional de confiança aumenta credibilidade</li>
+            </ul>
+        </div>
+        """.format(economia_vs_ads, (economia_vs_ads/cac_medio)*100, cac_ltv_indicacao, cac_ltv_ads), 
+        unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="info-box">
+            <h4>📌 Pontos de Atenção</h4>
+            <ul>
+                <li><strong>Gestão de parceiros:</strong> Necessário sistema de acompanhamento de indicações</li>
+                <li><strong>Treinamento:</strong> Contadores precisam conhecer o produto</li>
+                <li><strong>SLA de pagamento:</strong> Definir prazos claros para comissões</li>
+                <li><strong>Qualificação:</strong> Estabelecer critérios para indicações válidas</li>
+                <li><strong>Suporte:</strong> Canal dedicado para dúvidas dos parceiros</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Recomendações estratégicas
+    st.markdown("### 🎯 Recomendações Estratégicas")
+    
+    st.markdown("""
+    <div class="alert-box">
+        <h4>📋 Plano de Ação Sugerido</h4>
+        <ol>
+            <li><strong>Fase 1 - Piloto (Mês 1-2):</strong>
+                <ul>
+                    <li>Selecionar 5-10 contadores parceiros</li>
+                    <li>Criar material de apoio e treinamento</li>
+                    <li>Definir processo de indicação e tracking</li>
+                    <li>Meta: 3-5 clientes indicados</li>
+                </ul>
+            </li>
+            <li><strong>Fase 2 - Expansão (Mês 3-6):</strong>
+                <ul>
+                    <li>Recrutar mais 20-30 contadores</li>
+                    <li>Implementar sistema de gamificação</li>
+                    <li>Criar programa de benefícios por performance</li>
+                    <li>Meta: 10-15 clientes/mês</li>
+                </ul>
+            </li>
+            <li><strong>Fase 3 - Escala (Mês 7+):</strong>
+                <ul>
+                    <li>Automatizar onboarding de parceiros</li>
+                    <li>Criar comunidade de parceiros</li>
+                    <li>Desenvolver co-marketing</li>
+                    <li>Meta: 20+ clientes/mês</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # KPIs para monitoramento
+    st.markdown("### 📊 KPIs para Monitoramento do Programa")
+    
+    kpis_parceria = pd.DataFrame({
+        'KPI': [
+            'Número de Parceiros Ativos',
+            'Indicações Qualificadas/Mês',
+            'Taxa de Conversão Indicações',
+            'CAC Médio por Indicação',
+            'LTV Médio Clientes Indicados',
+            'Tempo Médio de Conversão',
+            'NPS dos Parceiros',
+            'Receita via Parceria (%)'
+        ],
+        'Meta Mês 3': ['15', '10', '40%', f'R$ {cac_indicacao:.2f}', f'R$ {ltv_medio:.2f}', '30 dias', '8+', '10%'],
+        'Meta Mês 6': ['30', '20', '45%', f'R$ {cac_indicacao*0.9:.2f}', f'R$ {ltv_medio*1.1:.2f}', '25 dias', '9+', '20%'],
+        'Meta Mês 12': ['50+', '30+', '50%', f'R$ {cac_indicacao*0.8:.2f}', f'R$ {ltv_medio*1.2:.2f}', '20 dias', '9+', '30%']
+    })
+    
+    st.dataframe(kpis_parceria, use_container_width=True, hide_index=True)
+    
+    st.info("""
+    💡 **Nota:** Os cálculos utilizam os valores médios dos dados históricos. 
+    Para análises mais precisas, recomenda-se criar uma coluna de origem do lead 
+    para rastrear especificamente os clientes vindos de indicações de contadores.
+    """)
 
 # Footer
 st.markdown("---")
