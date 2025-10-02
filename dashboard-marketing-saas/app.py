@@ -656,9 +656,36 @@ with tab6:
 with tab7:
     st.subheader("🤝 Parceria Contador: Simulação de Indicadores")
     
-    # Configurações da parceria
-    meses_comissao = 6
-    percentual_comissao = 0.15
+    # Controles de configuração da parceria
+    st.markdown("### ⚙️ Configuração do Modelo de Parceria")
+    
+    col_config1, col_config2 = st.columns(2)
+    
+    with col_config1:
+        percentual_comissao = st.slider(
+            "Percentual de Comissão (%)",
+            min_value=5.0,
+            max_value=25.0,
+            value=15.0,
+            step=0.5,
+            help="Ajuste o percentual de comissão mensal sobre o ticket"
+        ) / 100
+        
+        st.info(f"💡 Comissão selecionada: **{percentual_comissao*100:.1f}%**")
+    
+    with col_config2:
+        meses_comissao = st.slider(
+            "Período de Comissão (meses)",
+            min_value=3,
+            max_value=12,
+            value=6,
+            step=1,
+            help="Por quantos meses o contador receberá comissão"
+        )
+        
+        st.info(f"📅 Período: **{meses_comissao} meses**")
+    
+    st.markdown("---")
     
     # Valores médios baseados nos dados filtrados
     ticket_medio = df_filtered['Ticket Médio'].mean()
@@ -671,15 +698,15 @@ with tab7:
     custo_por_lead_max = 50
     custo_por_lead_medio = (custo_por_lead_min + custo_por_lead_max) / 2
     
-    # Comissão mensal (não acumulada)
+    # Comissão mensal (não acumulada) - CALCULADA COM BASE NO SLIDER
     comissao_mensal = ticket_medio * percentual_comissao
     
     # Informações do modelo de parceria
     st.markdown(f"""
     <div class="metric-card">
-        <h4>📋 Modelo de Parceria</h4>
+        <h4>📋 Resumo do Modelo de Parceria</h4>
         <ul>
-            <li>Comissão: <strong>{percentual_comissao*100:.0f}%</strong> sobre o ticket mensal por <strong>{meses_comissao} meses</strong></li>
+            <li>Comissão: <strong>{percentual_comissao*100:.1f}%</strong> sobre o ticket mensal por <strong>{meses_comissao} meses</strong></li>
             <li>Comissão mensal por cliente: <strong>R$ {comissao_mensal:.2f}</strong></li>
             <li>Ticket Médio atual: <strong>R$ {ticket_medio:.2f}</strong></li>
             <li>ROI médio: <strong>{roi_medio:.1f}%</strong></li>
