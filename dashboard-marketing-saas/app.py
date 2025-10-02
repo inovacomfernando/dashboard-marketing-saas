@@ -78,7 +78,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     data = {
-        'Mês': ['Mai/25', 'Jun/25', 'Jul/25', 'Ago/25', 'Set/25'],
+        'Mês': ['Mai/25', 'Jun/25', 'Jul/25', 'Ago/25', 'Set/25', 'Out/25', 'Nov/25', 'Dez/25'],
         'Sessões': [5218, 5600, 5717, 7654, 8028],
         'Primeira Visita': [2900, 3562, 3500, 5400, 5548],
         'Leads': [270, 290, 401, 600, 604],
